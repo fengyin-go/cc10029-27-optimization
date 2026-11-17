@@ -8,6 +8,13 @@ from typing import Any
 
 from app.seed import SEED_ROWS
 
+# 跨模块内部表（下划线开头，不计入业务模块清单，也不进运营概览）：
+# 监控完整度数据报告按版本留存，告警通知清单供告警中心读取，回执保证幂等。
+MONITOR_REPORT_TABLE = "_monitor_completeness"
+MONITOR_META_TABLE = "_monitor_meta"
+MONITOR_RECEIPT_TABLE = "_monitor_receipt"
+ALERT_NOTIFICATION_TABLE = "_alert_notification"
+
 
 class Store:
     def __init__(self) -> None:
@@ -16,7 +23,8 @@ class Store:
         }
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        # 以下划线开头的是跨模块内部表（如监控完整度、告警通知清单），不计入业务模块清单。
+        return sorted(name for name in self._tables if not name.startswith("_"))
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])

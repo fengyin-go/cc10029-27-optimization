@@ -35,6 +35,32 @@ class ActionPayload(BaseModel):
     remark: str | None = None
 
 
+class OperatorPayload(BaseModel):
+    """携带操作人与角色的请求基座：服务端按角色鉴权，默认仅可查看。"""
+
+    operator: str = "访客账户"
+    role: str = "观察员"
+
+
+class CompletenessRunPayload(OperatorPayload):
+    """生成监控完整度数据报告：请求标识保证幂等，故障注入用于演练中断恢复。"""
+
+    values: dict[str, Any] = Field(default_factory=dict)
+
+
+class CompletenessEventPayload(OperatorPayload):
+    """观测窗口事件：迟到观测、任务停机，或二者同时到达的冲突批次。"""
+
+    window: str
+    events: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class VersionSwitchPayload(OperatorPayload):
+    """版本切换：回退监控完整度数据报告或切换新版本，都会改变当前数据版本。"""
+
+    action: str
+
+
 
 class TargetsiteEntry(BaseModel):
     """目标站点明细结构。"""

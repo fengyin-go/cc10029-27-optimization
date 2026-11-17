@@ -65,6 +65,15 @@ def export_entries(
         headers={"Content-Disposition": 'attachment; filename="alert.csv"'})
 
 
+@router.get("/notifications")
+def list_notifications(
+    notify_status: str | None = Query(default=None, description="待处理、已恢复、已取消、已归档"),
+) -> dict[str, Any]:
+    """告警通知清单：由监控完整度数据报告生成，只针对被确认为缺失或异常的观测窗口。"""
+    items = service.list_notifications(status=notify_status)
+    return {"items": items, "total": len(items), **service.completeness_status()}
+
+
 @router.get("/{entry_id}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条告警规则明细；不存在时给出可读的错误说明。"""

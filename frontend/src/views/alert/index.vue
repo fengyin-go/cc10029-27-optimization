@@ -76,6 +76,44 @@
       <span>共 {{ total }} 条告警中心记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <section class="notify-panel" data-testid="notify-panel">
+      <header class="page-head">
+        <div>
+          <h3>告警通知清单</h3>
+          <p class="page-desc">
+            由监控完整度数据报告生成，仅针对被确认为缺失或异常的观测窗口。
+            报告状态：{{ notifyMeta.报告状态 }}<template v-if="notifyMeta.数据版本"> · 数据版本 V{{ notifyMeta.数据版本 }}</template>
+          </p>
+        </div>
+        <div class="page-actions">
+          <button class="btn" data-testid="reload-notifications" type="button" @click="loadNotifications">刷新清单</button>
+        </div>
+      </header>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>通知编号</th><th>来源报告</th><th>窗口编号</th><th>观测时段</th>
+            <th>告警类型</th><th>通知状态</th><th>原因说明</th><th>生成时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="n in notifications" :key="String(n.id)" :data-testid="`notify-${n.id}`" :data-status="String(n.通知状态)">
+            <td>{{ n.通知编号 }}</td>
+            <td>{{ n.来源报告 }} · V{{ n.数据版本 }}</td>
+            <td>{{ n.窗口编号 }}</td>
+            <td>{{ n.观测时段 }}</td>
+            <td>{{ n.告警类型 }}</td>
+            <td><span class="notify-badge" :class="`st-${n.通知状态}`">{{ n.通知状态 }}</span></td>
+            <td>{{ n.原因说明 ?? '—' }}</td>
+            <td>{{ n.生成时间 }}</td>
+          </tr>
+          <tr v-if="!notifications.length">
+            <td colspan="8" class="empty-state">暂无告警通知：当前没有被确认为缺失或异常的观测窗口</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </section>
 </template>
 
@@ -184,5 +222,35 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+// 告警通知清单：读取监控完整度数据报告生成的通知，迟到数据到达后可在此核对告警变化
+const notifications = ref<Row[]>([])
+const notifyMeta = ref<Record<string, string | number | null>>({ 报告状态: '暂无数据', 数据版本: null })
+
+async function loadNotifications() {
+  try {
+    const response = await request(`${ENDPOINT}/notifications`)
+    if (!response.ok) {
+      throw new Error('告警通知清单读取失败')
+    }
+    const payload = await response.json()
+    notifications.value = payload.items ?? []
+    notifyMeta.value = { 报告状态: payload.报告状态 ?? '暂无数据', 数据版本: payload.数据版本 ?? null }
+  } catch (error) {
+    notifications.value = []
+    errorMessage.value = error instanceof Error ? error.message : '告警通知清单读取失败'
+  }
+}
+
+onMounted(() => {
+  void reload()
+  void loadNotifications()
+})
 </script>
+<style scoped>
+.notify-panel { margin-top: 20px; border-top: 2px solid var(--border); padding-top: 4px; }
+.notify-badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; white-space: nowrap; }
+.notify-badge.st-待处理 { background: #ef4444; }
+.notify-badge.st-已恢复 { background: #22c55e; }
+.notify-badge.st-已取消 { background: #94a3b8; }
+.notify-badge.st-已归档 { background: #64748b; }
+</style>
